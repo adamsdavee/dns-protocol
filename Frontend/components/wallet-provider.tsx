@@ -34,7 +34,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [signer, setSigner] = useState<ethers.JsonRpcSigner | null>(null)
   // You can also have local state for contract-related info if needed
   const [contractData, setContractData] = useState(contractsData)
-  const [chainId, setChainId] = useState<BigInt | null>();
 
   useEffect(() => {
     // Check if wallet was previously connected
@@ -59,8 +58,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       const ethSigner = await browserProvider.getSigner();
       const userAddress = await ethSigner.getAddress();
   
-      const network = await browserProvider.getNetwork();
-      setChainId(BigInt(network.chainId));
   
       setProvider(browserProvider);
       setSigner(ethSigner);

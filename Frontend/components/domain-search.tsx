@@ -109,7 +109,7 @@ export function DomainSearch() {
             placeholder="Enter domain name"
             value={domainName}
             onChange={handleInputChange}
-            className="w-full h-12 text-lg px-4"
+            className="w-full h-12 text-lg px-4 border-yellow-400"
           />
           <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">
             {domainName && !domainName.endsWith(".core") ? ".core" : ""}

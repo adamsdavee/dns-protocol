@@ -69,7 +69,7 @@ export function Header() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button onClick={connect} className="flex items-center gap-2">
+            <Button onClick={connect} className="flex items-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-white">
               <Wallet className="h-4 w-4" />
               <span>Connect Wallet</span>
             </Button>

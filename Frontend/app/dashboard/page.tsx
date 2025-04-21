@@ -100,7 +100,7 @@ export default function Dashboard() {
         )}
 
         <div className="flex justify-center pt-6">
-          <Button onClick={() => router.push("/")}>Register New Domain</Button>
+          <Button className="bg-yellow-500 hover:bg-yellow-600 text-white" onClick={() => router.push("/")}>Register New Domain</Button>
         </div>
       </div>
     </div>
