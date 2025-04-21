@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import "./ENS-Registry.sol";
+import "./ResolverContract.sol";
+
 
 /**
  * @title Registrar
@@ -8,10 +11,12 @@ pragma solidity ^0.8.0;
  *         It interacts with the ENSRegistry to update domain records.
  */
 contract Registrar {
-    IENSRegistry public registry;  // The registry contract that keeps domain records.
+
+    ENSRegistry public registry;  // The registry contract that keeps domain records.
+
 
     uint256 public registrationPeriod = 365 days; // How long a domain remains registered.
-    uint256 public registrationFee = 0.01 ether;    // Fee required for registration or renewal.
+    uint256 public registrationFee = 1 ether;    // Fee required for registration or renewal.
 
     // Event to log domain registrations.
     event DomainRegistered(bytes32 indexed domainHash, address owner, uint256 expiration);
@@ -20,8 +25,9 @@ contract Registrar {
      * @notice Constructor sets the address of the ENSRegistry contract.
      * @param _registry The deployed ENSRegistry contract address.
      */
-    constructor(ENSRegistry _registry) {
-        registry = _registry;
+    constructor(address _registry) {
+
+        registry = ENSRegistry(_registry);
     }
 
     /**
@@ -32,13 +38,15 @@ contract Registrar {
      * - The sender must pay at least the registration fee.
      */
     function register(bytes32 domainHash) external payable {
+
         require(msg.value >= registrationFee, "Insufficient fee");
-        ENSRegistry.Record memory rec = registry.records(domainHash);
+
+        ENSRegistry.Record memory rec = registry.getSpecificRecord(domainHash);
         // Check if the domain is either unregistered or its registration has expired.
         require(rec.owner == address(0) || rec.expiration < block.timestamp, "Domain already registered");
 
         uint256 expiration = block.timestamp + registrationPeriod;
-        registry.setRecord(domainHash, msg.sender, address(0), expiration);
+        registry.setRecord(domainHash, msg.sender, address(0), block.timestamp, expiration);
         emit DomainRegistered(domainHash, msg.sender, expiration);
     }
 
@@ -51,7 +59,7 @@ contract Registrar {
      */
     function renew(bytes32 domainHash) external payable {
         require(msg.value >= registrationFee, "Insufficient fee");
-        ENSRegistry.Record memory rec = registry.records(domainHash);
+        ENSRegistry.Record memory rec = registry.getSpecificRecord(domainHash);
         require(rec.owner == msg.sender, "Not the owner");
 
         uint256 newExpiration;
@@ -61,7 +69,7 @@ contract Registrar {
         } else {
             newExpiration = block.timestamp + registrationPeriod;
         }
-        registry.setRecord(domainHash, msg.sender, rec.resolver, newExpiration);
+        registry.setRecord(domainHash, msg.sender, rec.resolver, block.timestamp, newExpiration);
         emit DomainRegistered(domainHash, msg.sender, newExpiration);
     }
 }

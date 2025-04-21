@@ -1,8 +1,6 @@
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useWallet } from "@/hooks/use-wallet"
 import { Input } from "@/components/ui/input"
@@ -17,6 +15,7 @@ import {
 } from "@/components/ui/dialog"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle, Check, Loader2 } from "lucide-react"
+import { ethers } from "ethers"
 
 export function DomainSearch() {
   const [domainName, setDomainName] = useState("")
@@ -26,16 +25,14 @@ export function DomainSearch() {
   const [owner, setOwner] = useState<string | null>(null)
   const [showDialog, setShowDialog] = useState(false)
   const [registrationSuccess, setRegistrationSuccess] = useState(false)
-  const { isConnected, connect } = useWallet()
+  const { isConnected, connect, signer, getContractOne, getContractTwo } = useWallet()
   const router = useRouter()
 
-  // Ensure domain name has .core suffix
+  // Helper to ensure domain names use .core
   const formatDomainName = (name: string) => {
     if (!name) return ""
-
     const trimmed = name.trim().toLowerCase()
-    if (trimmed.endsWith(".core")) return trimmed
-    return `${trimmed}.core`
+    return trimmed.endsWith(".core") ? trimmed : `${trimmed}.core`
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -52,21 +49,36 @@ export function DomainSearch() {
     setIsChecking(true)
 
     try {
-      // This would be replaced with actual contract call
-      // Example: const owner = await coreContract.getOwner(formattedName)
+      // Compute the domain hash to be used as key (ensuring the same encoding as in Solidity)
+      const domainHash = ethers.encodeBytes32String(formattedName)
 
-      // Simulating API call with timeout
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      console.log(domainHash)
+      
+      // Retrieve the ENSRegistry instance from context
+      const ensRegistry = getContractOne()
+      if (!ensRegistry) throw new Error("ENS Registry contract is not loaded")
+      
+      // Call getSpecificRecord from the ENSRegistry contract
+      const record = await ensRegistry.getSpecificRecord(domainHash)
+      // record: { owner, resolver, registration, expiration }
+      console.log("heyy")
 
-      // Mock check for demonstration (random result)
-      const mockAvailable = Math.random() > 0.5
-      setIsAvailable(mockAvailable)
+      console.log(record.owner);
+      console.log(record.expiration);
+      console.log(record.domainn);
 
-      if (!mockAvailable) {
-        // Mock owner address
-        setOwner("0x1234...5678")
+      // Owner is available if it is the zero-address or its expiration is in the past.
+      const zeroAddress = "0x0000000000000000000000000000000000000000"
+      // Convert the expiration from BigNumber to a number (timestamp in seconds)
+      const expirationTimestamp = parseInt(record.expiration.toString())
+      const currentTimestamp = Math.floor(Date.now() / 1000)
+
+      if (record.owner === zeroAddress || expirationTimestamp < currentTimestamp) {
+        setIsAvailable(true)
+      } else {
+        setIsAvailable(false)
+        setOwner(record.owner)
       }
-
       setShowDialog(true)
     } catch (error) {
       console.error("Error checking domain availability:", error)
@@ -80,23 +92,29 @@ export function DomainSearch() {
       await connect()
       return
     }
-
     if (!isAvailable) return
-
+  
     const formattedName = formatDomainName(domainName)
     setIsRegistering(true)
-
+  
     try {
-      // This would be replaced with actual contract call
-      // Example: await coreContract.registerDomain(formattedName)
-
-      // Simulating API call with timeout
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-
-      // Mock successful registration
+      // Compute the domain hash
+      const domainHash = ethers.encodeBytes32String(formattedName)
+      
+      const registrar = getContractTwo()
+      if (!registrar) throw new Error("Registrar contract is not loaded")
+      
+      // Submit the transaction
+      const tx = await registrar.register(domainHash, {
+        value: ethers.parseEther("1.0"),
+      })
+      console.log("Transaction sent. Waiting for confirmation...")
+      
+      await tx.wait()
+      console.log("Transaction confirmed.")
+  
       setRegistrationSuccess(true)
-
-      // Redirect to dashboard after successful registration
+      // Optionally, delay redirecting the user until after new data is loaded.
       setTimeout(() => {
         setShowDialog(false)
         router.push("/dashboard")
@@ -107,6 +125,8 @@ export function DomainSearch() {
       setIsRegistering(false)
     }
   }
+  
+
 
   return (
     <div className="w-full">
@@ -151,7 +171,9 @@ export function DomainSearch() {
               <Alert className="border-green-500 bg-green-50 dark:bg-green-950">
                 <Check className="h-4 w-4 text-green-500" />
                 <AlertTitle className="text-green-500">Available!</AlertTitle>
-                <AlertDescription>This domain is available for registration.</AlertDescription>
+                <AlertDescription>
+                  This domain is available for registration.
+                </AlertDescription>
               </Alert>
             )}
 
@@ -159,7 +181,9 @@ export function DomainSearch() {
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
                 <AlertTitle>Already Registered</AlertTitle>
-                <AlertDescription>This domain has already been registered by {owner}.</AlertDescription>
+                <AlertDescription>
+                  This domain has already been registered by {owner}.
+                </AlertDescription>
               </Alert>
             )}
 
@@ -167,7 +191,9 @@ export function DomainSearch() {
               <Alert className="border-green-500 bg-green-50 dark:bg-green-950">
                 <Check className="h-4 w-4 text-green-500" />
                 <AlertTitle className="text-green-500">Success!</AlertTitle>
-                <AlertDescription>Domain successfully registered. Redirecting to your dashboard...</AlertDescription>
+                <AlertDescription>
+                  Domain successfully registered. Redirecting to your dashboard...
+                </AlertDescription>
               </Alert>
             )}
           </div>
@@ -187,7 +213,11 @@ export function DomainSearch() {
             )}
 
             {!isAvailable && (
-              <Button variant="outline" onClick={() => setShowDialog(false)} className="w-full">
+              <Button
+                variant="outline"
+                onClick={() => setShowDialog(false)}
+                className="w-full"
+              >
                 Close
               </Button>
             )}

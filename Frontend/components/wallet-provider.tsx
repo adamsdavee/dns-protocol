@@ -2,6 +2,7 @@
 
 import { createContext, useEffect, useState, type ReactNode } from "react"
 import { ethers } from "ethers"
+import contractsData from "../constants/config.json"  // adjust the path as needed
 
 interface WalletContextType {
   address: string | null
@@ -10,6 +11,9 @@ interface WalletContextType {
   disconnect: () => void
   provider: ethers.BrowserProvider | null
   signer: ethers.JsonRpcSigner | null
+  // Functions to get contract instances
+  getContractOne: () => ethers.Contract | null
+  getContractTwo: () => ethers.Contract | null
 }
 
 export const WalletContext = createContext<WalletContextType>({
@@ -19,6 +23,8 @@ export const WalletContext = createContext<WalletContextType>({
   disconnect: () => {},
   provider: null,
   signer: null,
+  getContractOne: () => null,
+  getContractTwo: () => null,
 })
 
 export function WalletProvider({ children }: { children: ReactNode }) {
@@ -26,40 +32,45 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [isConnected, setIsConnected] = useState(false)
   const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null)
   const [signer, setSigner] = useState<ethers.JsonRpcSigner | null>(null)
+  // You can also have local state for contract-related info if needed
+  const [contractData, setContractData] = useState(contractsData)
+  const [chainId, setChainId] = useState<BigInt | null>();
 
   useEffect(() => {
     // Check if wallet was previously connected
     const checkConnection = async () => {
-      if (window.ethereum && localStorage.getItem("walletConnected") === "true") {
+      if ((window as any).ethereum && localStorage.getItem("walletConnected") === "true") {
         await connect()
       }
     }
-
     checkConnection()
   }, [])
 
   const connect = async () => {
-    if (typeof window.ethereum !== "undefined") {
+    if (typeof (window as any).ethereum !== "undefined") {
       try {
         // Request account access
-        await window.ethereum.request({ method: "eth_requestAccounts" })
+        await (window as any).ethereum.request({ method: "eth_requestAccounts" })
 
-        const browserProvider = new ethers.BrowserProvider(window.ethereum)
+        const browserProvider = new ethers.BrowserProvider((window as any).ethereum)
         const ethSigner = await browserProvider.getSigner()
         const userAddress = await ethSigner.getAddress()
+
+        const network = await browserProvider.getNetwork();
+        setChainId(network.chainId);
 
         setProvider(browserProvider)
         setSigner(ethSigner)
         setAddress(userAddress)
         setIsConnected(true)
-        localStorage.setItem("walletConnected", "true")
+        localStorage.setItem("walletConnected", "true");
 
-        // Listen for account changes
-        window.ethereum.on("accountsChanged", handleAccountsChanged)
-        window.ethereum.on("chainChanged", handleChainChanged)
-        window.ethereum.on("disconnect", handleDisconnect)
+        // Listen for changes
+        (window as any).on("accountsChanged", handleAccountsChanged);
+        (window as any).ethereum.on("chainChanged", handleChainChanged);
+        (window as any).ethereum.on("disconnect", handleDisconnect);
       } catch (error) {
-        console.error("Error connecting wallet:", error)
+        console.log("Error connecting wallet")
       }
     } else {
       alert("Please install MetaMask or another Ethereum wallet")
@@ -73,31 +84,51 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setSigner(null)
     localStorage.removeItem("walletConnected")
 
-    // Remove listeners
-    if (window.ethereum) {
-      window.ethereum.removeListener("accountsChanged", handleAccountsChanged)
-      window.ethereum.removeListener("chainChanged", handleChainChanged)
-      window.ethereum.removeListener("disconnect", handleDisconnect)
+    if ((window as any).ethereum) {
+      (window as any).ethereum.removeListener("accountsChanged", handleAccountsChanged)
+      (window as any).ethereum.removeListener("chainChanged", handleChainChanged)
+      (window as any).ethereum.removeListener("disconnect", handleDisconnect)
     }
   }
 
   const handleAccountsChanged = (accounts: string[]) => {
     if (accounts.length === 0) {
-      // User disconnected their wallet
       disconnect()
     } else {
-      // User switched accounts
       setAddress(accounts[0])
     }
   }
 
   const handleChainChanged = () => {
-    // Reload the page when the chain changes
     window.location.reload()
   }
 
   const handleDisconnect = () => {
     disconnect()
+  }
+
+  // Helpers for creating contract instances using the signer
+  const getContractOne = () => {
+    if (signer) {
+
+      return new ethers.Contract(
+        contractData.ContractOne.address,
+        contractData.ContractOne.abi,
+        signer
+      )
+    }
+    return null
+  }
+
+  const getContractTwo = () => {
+    if (signer) {
+      return new ethers.Contract(
+        contractData.ContractTwo.address,
+        contractData.ContractTwo.abi,
+        signer
+      )
+    }
+    return null
   }
 
   return (
@@ -109,6 +140,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         disconnect,
         provider,
         signer,
+        getContractOne,
+        getContractTwo,
       }}
     >
       {children}

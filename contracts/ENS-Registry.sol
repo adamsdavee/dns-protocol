@@ -9,14 +9,17 @@ pragma solidity ^0.8.0;
 contract ENSRegistry {
     // A record for each domain name
     struct Record {
+        bytes32 domainName;
         address owner;    // The wallet address that owns the domain
         address resolver; // Address of the resolver contract for this domain
+        uint256 registration; // When the domain was registered
         uint256 expiration; // When the domain registration expires
     }
 
     // Mapping from a domain node (e.g., keccak256 hash of the domain name) to its record.
     mapping(bytes32 => Record) public records;
 
+    // Array of all records for iteration purposes
     Record[] private allRecords;
 
     // Events to log changes in the registry.
@@ -30,19 +33,26 @@ contract ENSRegistry {
      * @param domainHash The unique identifier for the domain.
      * @param owner The wallet address of the domain owner.
      * @param resolver The resolver contract address associated with this domain.
+     * @param registration The timestamp when the domain was registered.
      * @param expiration The timestamp when the registration expires.
      */
     function setRecord(
         bytes32 domainHash,
         address owner,
         address resolver,
+        uint256 registration,
         uint256 expiration
     ) external {
         // Allow update if the caller is the current owner or if the domain is unregistered.
-        require(msg.sender == records[domainHash].owner || records[domainHash].owner == address(0), "Not authorized");
-        Record memory record = Record(owner, resolver, expiration);
+        require(
+            msg.sender == records[domainHash].owner || records[domainHash].owner == address(0),
+            "Not authorized"
+        );
+
+        Record memory record = Record(domainHash, owner, resolver, registration, expiration);
         records[domainHash] = record;
-        allRecorods.push(record);
+        allRecords.push(record);
+
         emit NewDomain(domainHash, owner);
     }
 
@@ -68,11 +78,57 @@ contract ENSRegistry {
         emit SetResolver(domainHash, resolver);
     }
 
-    function getSpecificRecord(bytes32 domainHash) external view returns (Record) {
+    /**
+     * @notice Retrieve a specific record by domain hash.
+     * @param domainHash The unique identifier for the domain.
+     * @return The Record struct for the domain.
+     */
+    function getSpecificRecord(bytes32 domainHash) external view returns (Record memory) {
         return records[domainHash];
     }
 
+    // /**
+    //  * @notice Retrieve basic fields of a record.
+    //  * @param domainHash The unique identifier for the domain.
+    //  * @return domainName, owner, registration timestamp, and expiration timestamp.
+    //  */
+    // function getMyRecord(bytes32 domainHash) external view returns (bytes32, address, uint256, uint256) {
+    //     Record memory rec = records[domainHash];
+    //     return (rec.domainName, rec.owner, rec.registration, rec.expiration);
+    // }
+
+    /**
+     * @notice Retrieve all recorded domains.
+     * @return An array of all Record structs.
+     */
     function getAllRecords() external view returns (Record[] memory) {
         return allRecords;
+    }
+
+    /**
+     * @notice Retrieve all domain names owned by a particular address.
+     * @param ownerAddress The address to query ownership for.
+     * @return An array of domain hashes owned by the specified address.
+     */
+    function getDomainsByOwner(address ownerAddress) external view returns (bytes32[] memory) {
+        uint256 total = allRecords.length;
+        uint256 count = 0;
+        // First count how many domains belong to ownerAddress
+        for (uint256 i = 0; i < total; i++) {
+            if (allRecords[i].owner == ownerAddress) {
+                count++;
+            }
+        }
+
+        // Populate result array
+        bytes32[] memory domains = new bytes32[](count);
+        uint256 index = 0;
+        for (uint256 i = 0; i < total; i++) {
+            if (allRecords[i].owner == ownerAddress) {
+                domains[index] = allRecords[i].domainName;
+                index++;
+            }
+        }
+        return domains;
     }
 }

@@ -10,7 +10,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
 
 export default function Dashboard() {
-  const { address, isConnected } = useWallet()
+  const { address, isConnected, getContractOne } = useWallet()
   const [domains, setDomains] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const router = useRouter()
@@ -26,13 +26,21 @@ export default function Dashboard() {
         // This would be replaced with actual contract call
         // Example: const userDomains = await coreContract.getUserDomains(address)
 
-        // Simulating API call with timeout
-        await new Promise((resolve) => setTimeout(resolve, 1000))
+      const ensRegistry = getContractOne()
+      if (!ensRegistry) throw new Error("ENS Registry contract is not loaded")
+      
+      // Call getSpecificRecord from the ENSRegistry contract
+      const domainHashes = await ensRegistry.getDomainsByOwner(address)
+      // record: { owner, resolver, registration, expiration }
+      console.log("heyy")
+
+      console.log(domainHashes);
+      console.log(address)
 
         // Mock data for demonstration
-        const mockDomains = ["mydomain.core", "coredeveloper.core", "blockchain.core"]
+        // const mockDomains = ["mydomain.core", "coredeveloper.core", "blockchain.core"]
 
-        setDomains(mockDomains)
+        setDomains(domainHashes)
       } catch (error) {
         console.error("Error fetching user domains:", error)
       } finally {
