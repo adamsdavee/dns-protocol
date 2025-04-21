@@ -28,7 +28,6 @@ export function DomainSearch() {
   const { isConnected, connect, signer, getContractOne, getContractTwo } = useWallet()
   const router = useRouter()
 
-  // Helper to ensure domain names use .core
   const formatDomainName = (name: string) => {
     if (!name) return ""
     const trimmed = name.trim().toLowerCase()
@@ -37,7 +36,6 @@ export function DomainSearch() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setDomainName(e.target.value)
-    // Reset states when input changes
     setIsAvailable(null)
     setOwner(null)
   }
@@ -49,27 +47,11 @@ export function DomainSearch() {
     setIsChecking(true)
 
     try {
-      // Compute the domain hash to be used as key (ensuring the same encoding as in Solidity)
       const domainHash = ethers.encodeBytes32String(formattedName)
-
-      console.log(domainHash)
-      
-      // Retrieve the ENSRegistry instance from context
       const ensRegistry = getContractOne()
       if (!ensRegistry) throw new Error("ENS Registry contract is not loaded")
-      
-      // Call getSpecificRecord from the ENSRegistry contract
       const record = await ensRegistry.getSpecificRecord(domainHash)
-      // record: { owner, resolver, registration, expiration }
-      console.log("heyy")
-
-      console.log(record.owner);
-      console.log(record.expiration);
-      console.log(record.domainn);
-
-      // Owner is available if it is the zero-address or its expiration is in the past.
       const zeroAddress = "0x0000000000000000000000000000000000000000"
-      // Convert the expiration from BigNumber to a number (timestamp in seconds)
       const expirationTimestamp = parseInt(record.expiration.toString())
       const currentTimestamp = Math.floor(Date.now() / 1000)
 
@@ -81,7 +63,7 @@ export function DomainSearch() {
       }
       setShowDialog(true)
     } catch (error) {
-      console.error("Error checking domain availability:", error)
+      console.error(error)
     } finally {
       setIsChecking(false)
     }
@@ -93,40 +75,30 @@ export function DomainSearch() {
       return
     }
     if (!isAvailable) return
-  
+
     const formattedName = formatDomainName(domainName)
     setIsRegistering(true)
-  
+
     try {
-      // Compute the domain hash
       const domainHash = ethers.encodeBytes32String(formattedName)
-      
       const registrar = getContractTwo()
       if (!registrar) throw new Error("Registrar contract is not loaded")
-      
-      // Submit the transaction
       const tx = await registrar.register(domainHash, {
         value: ethers.parseEther("1.0"),
       })
-      console.log("Transaction sent. Waiting for confirmation...")
-      
       await tx.wait()
-      console.log("Transaction confirmed.")
-  
+
       setRegistrationSuccess(true)
-      // Optionally, delay redirecting the user until after new data is loaded.
       setTimeout(() => {
         setShowDialog(false)
         router.push("/dashboard")
       }, 2000)
     } catch (error) {
-      console.error("Error registering domain:", error)
+      console.error(error)
     } finally {
       setIsRegistering(false)
     }
   }
-  
-
 
   return (
     <div className="w-full">
@@ -146,7 +118,7 @@ export function DomainSearch() {
         <Button
           onClick={checkAvailability}
           disabled={!domainName.trim() || isChecking}
-          className="w-full sm:w-auto h-12 px-8 text-lg"
+          className="w-full sm:w-auto h-12 px-8 text-lg bg-yellow-500 hover:bg-yellow-600 text-white"
         >
           {isChecking ? (
             <>
@@ -168,9 +140,9 @@ export function DomainSearch() {
 
           <div className="py-4">
             {isAvailable === true && (
-              <Alert className="border-green-500 bg-green-50 dark:bg-green-950">
-                <Check className="h-4 w-4 text-green-500" />
-                <AlertTitle className="text-green-500">Available!</AlertTitle>
+              <Alert className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950">
+                <Check className="h-4 w-4 text-yellow-500" />
+                <AlertTitle className="text-yellow-500">Available!</AlertTitle>
                 <AlertDescription>
                   This domain is available for registration.
                 </AlertDescription>
@@ -188,9 +160,9 @@ export function DomainSearch() {
             )}
 
             {registrationSuccess && (
-              <Alert className="border-green-500 bg-green-50 dark:bg-green-950">
-                <Check className="h-4 w-4 text-green-500" />
-                <AlertTitle className="text-green-500">Success!</AlertTitle>
+              <Alert className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950">
+                <Check className="h-4 w-4 text-yellow-500" />
+                <AlertTitle className="text-yellow-500">Success!</AlertTitle>
                 <AlertDescription>
                   Domain successfully registered. Redirecting to your dashboard...
                 </AlertDescription>
@@ -200,7 +172,11 @@ export function DomainSearch() {
 
           <DialogFooter>
             {isAvailable && !registrationSuccess && (
-              <Button onClick={registerDomain} disabled={isRegistering} className="w-full">
+              <Button
+                onClick={registerDomain}
+                disabled={isRegistering}
+                className="w-full bg-yellow-500 hover:bg-yellow-600 text-white"
+              >
                 {isRegistering ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

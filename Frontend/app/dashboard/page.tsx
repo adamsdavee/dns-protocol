@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { useRouter } from "next/navigation"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
+import { ethers } from "ethers"
 
 export default function Dashboard() {
   const { address, isConnected, getContractOne } = useWallet()
@@ -31,16 +32,17 @@ export default function Dashboard() {
       
       // Call getSpecificRecord from the ENSRegistry contract
       const domainHashes = await ensRegistry.getDomainsByOwner(address)
+      const domainNames = domainHashes.map((hash: any) => ethers.decodeBytes32String(hash));
       // record: { owner, resolver, registration, expiration }
       console.log("heyy")
 
       console.log(domainHashes);
-      console.log(address)
+      console.log(domainNames)
 
         // Mock data for demonstration
         // const mockDomains = ["mydomain.core", "coredeveloper.core", "blockchain.core"]
 
-        setDomains(domainHashes)
+        setDomains(domainNames)
       } catch (error) {
         console.error("Error fetching user domains:", error)
       } finally {

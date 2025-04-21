@@ -47,49 +47,50 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const connect = async () => {
-    if (typeof (window as any).ethereum !== "undefined") {
-      try {
-        // Request account access
-        await (window as any).ethereum.request({ method: "eth_requestAccounts" })
-
-        const browserProvider = new ethers.BrowserProvider((window as any).ethereum)
-        const ethSigner = await browserProvider.getSigner()
-        const userAddress = await ethSigner.getAddress()
-
-        const network = await browserProvider.getNetwork();
-        setChainId(network.chainId);
-
-        setProvider(browserProvider)
-        setSigner(ethSigner)
-        setAddress(userAddress)
-        setIsConnected(true)
-        localStorage.setItem("walletConnected", "true");
-
-        // Listen for changes
-        (window as any).on("accountsChanged", handleAccountsChanged);
-        (window as any).ethereum.on("chainChanged", handleChainChanged);
-        (window as any).ethereum.on("disconnect", handleDisconnect);
-      } catch (error) {
-        console.log("Error connecting wallet")
-      }
-    } else {
-      alert("Please install MetaMask or another Ethereum wallet")
+    if (!(window as any).ethereum) {
+      return alert("Please install MetaMask or another Ethereum wallet");
     }
-  }
-
+  
+    try {
+      // trigger the popup
+      await (window as any).ethereum.request({ method: "eth_requestAccounts" });
+  
+      const browserProvider = new ethers.BrowserProvider((window as any).ethereum);
+      const ethSigner = await browserProvider.getSigner();
+      const userAddress = await ethSigner.getAddress();
+  
+      const network = await browserProvider.getNetwork();
+      setChainId(BigInt(network.chainId));
+  
+      setProvider(browserProvider);
+      setSigner(ethSigner);
+      setAddress(userAddress);
+      setIsConnected(true);
+      localStorage.setItem("walletConnected", "true");
+  
+      // --- CORRECT listener registration ---
+      (window as any).ethereum.on("accountsChanged", handleAccountsChanged);
+      (window as any).ethereum.on("chainChanged", handleChainChanged);
+      // (no "disconnect" here)
+    } catch (err) {
+      console.error("User rejected connection or other error", err);
+    }
+  };
+  
   const disconnect = () => {
-    setAddress(null)
-    setIsConnected(false)
-    setProvider(null)
-    setSigner(null)
-    localStorage.removeItem("walletConnected")
-
-    if ((window as any).ethereum) {
-      (window as any).ethereum.removeListener("accountsChanged", handleAccountsChanged)
-      (window as any).ethereum.removeListener("chainChanged", handleChainChanged)
-      (window as any).ethereum.removeListener("disconnect", handleDisconnect)
+    setAddress(null);
+    setIsConnected(false);
+    setProvider(null);
+    setSigner(null);
+    localStorage.removeItem("walletConnected");
+  
+    if ((window as any).ethereum && (window as any).ethereum.removeListener) {
+      // --- CORRECT listener removal ---
+      (window as any).ethereum.removeListener("accountsChanged", handleAccountsChanged);
+      (window as any).ethereum.removeListener("chainChanged", handleChainChanged);
+      // no removeListener for "disconnect"
     }
-  }
+  };
 
   const handleAccountsChanged = (accounts: string[]) => {
     if (accounts.length === 0) {
