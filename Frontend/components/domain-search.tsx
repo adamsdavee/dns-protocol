@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle, Check, Loader2, Network } from "lucide-react"
+import { ethers } from "ethers"
 
 export function DomainSearch() {
   const [domainName, setDomainName] = useState("")
@@ -27,7 +28,7 @@ export function DomainSearch() {
   const [showDialog, setShowDialog] = useState(false)
   const [registrationSuccess, setRegistrationSuccess] = useState(false)
   const [registrationError, setRegistrationError] = useState<string | null>(null)
-  const { isConnected, connect, networkStatus, switchNetwork } = useWallet()
+  const { isConnected, connect, networkStatus, switchNetwork, getContractOne, getContractTwo } = useWallet()
   const { isCorrectNetwork, isSwitchingNetwork } = networkStatus
   const router = useRouter()
 
@@ -63,21 +64,25 @@ export function DomainSearch() {
     setRegistrationError(null)
 
     try {
-      // This would be replaced with actual contract call
-      // Example: const owner = await coreContract.getOwner(formattedName)
+      console.log("In here")
+      const domainHash = ethers.encodeBytes32String(formattedName)
+      console.log(domainHash)
+      const ensRegistry = getContractOne()
+      if (!ensRegistry) throw new Error("ENS Registry contract is not loaded")
 
-      // Simulating API call with timeout
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+        console.log(ensRegistry)
+        console.log("Done!!")
+      const record = await ensRegistry.getSpecificRecord(domainHash)
+    console.log(record)
+      const zeroAddress = "0x0000000000000000000000000000000000000000"
 
       // Mock check for demonstration (random result)
-      const mockAvailable = Math.random() > 0.5
-      setIsAvailable(mockAvailable)
-
-      if (!mockAvailable) {
-        // Mock owner address
-        setOwner("0x1234...5678")
+      if (record.owner === zeroAddress) {
+        setIsAvailable(true)
+      } else {
+        setIsAvailable(false)
+        setOwner(record.owner)
       }
-
       setShowDialog(true)
     } catch (error) {
       console.error("Error checking domain availability:", error)
@@ -113,16 +118,15 @@ export function DomainSearch() {
     setIsRegistering(true)
 
     try {
-      // This would be replaced with actual contract call
-      // Example: await coreContract.registerDomain(formattedName)
+      const domainHash = ethers.encodeBytes32String(formattedName)
+      const registrar = getContractTwo()
+      if (!registrar) throw new Error("Registrar contract is not loaded")
+      const tx = await registrar.register(domainHash, {
+        value: ethers.parseEther("0.01"),
+      })
+      await tx.wait()
 
-      // Simulating API call with timeout
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-
-      // Mock successful registration
       setRegistrationSuccess(true)
-
-      // Redirect to dashboard after successful registration
       setTimeout(() => {
         setShowDialog(false)
         router.push("/dashboard")
@@ -207,7 +211,7 @@ export function DomainSearch() {
             )}
 
             {isConnected && !isCorrectNetwork && (
-              <Alert variant="warning" className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950">
+              <Alert className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950">
                 <Network className="h-4 w-4 text-yellow-500" />
                 <AlertTitle className="text-yellow-500">Wrong Network</AlertTitle>
                 <AlertDescription>You need to switch to CoreTestnet2 to register domains.</AlertDescription>
