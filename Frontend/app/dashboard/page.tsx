@@ -8,10 +8,9 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { useRouter } from "next/navigation"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
-import { ethers } from "ethers"
 
 export default function Dashboard() {
-  const { address, isConnected, getContractOne } = useWallet()
+  const { address, isConnected } = useWallet()
   const [domains, setDomains] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const router = useRouter()
@@ -27,22 +26,13 @@ export default function Dashboard() {
         // This would be replaced with actual contract call
         // Example: const userDomains = await coreContract.getUserDomains(address)
 
-      const ensRegistry = getContractOne()
-      if (!ensRegistry) throw new Error("ENS Registry contract is not loaded")
-      
-      // Call getSpecificRecord from the ENSRegistry contract
-      const domainHashes = await ensRegistry.getDomainsByOwner(address)
-      const domainNames = domainHashes.map((hash: any) => ethers.decodeBytes32String(hash));
-      // record: { owner, resolver, registration, expiration }
-      console.log("heyy")
-
-      console.log(domainHashes);
-      console.log(domainNames)
+        // Simulating API call with timeout
+        await new Promise((resolve) => setTimeout(resolve, 1000))
 
         // Mock data for demonstration
-        // const mockDomains = ["mydomain.core", "coredeveloper.core", "blockchain.core"]
+        const mockDomains = ["mydomain.core", "coredeveloper.core", "blockchain.core"]
 
-        setDomains(domainNames)
+        setDomains(mockDomains)
       } catch (error) {
         console.error("Error fetching user domains:", error)
       } finally {
@@ -100,7 +90,7 @@ export default function Dashboard() {
         )}
 
         <div className="flex justify-center pt-6">
-          <Button className="bg-yellow-500 hover:bg-yellow-600 text-white" onClick={() => router.push("/")}>Register New Domain</Button>
+          <Button onClick={() => router.push("/")}>Register New Domain</Button>
         </div>
       </div>
     </div>
